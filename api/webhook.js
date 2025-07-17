@@ -3,13 +3,13 @@ export default function handler(req, res) {
     return res.status(405).json({ error: "Método não permitido" });
   }
 
-  // LOG para debug no painel da Vercel
   console.log("📥 Body recebido:", req.body);
 
-  const { CEP_usuario } = req.body.variables || {};
+  // Pega o conteúdo da última mensagem do usuário
+  const CEP_usuario = req.body?.Payload?.Content?.LastMessage?.Content;
 
   if (!CEP_usuario) {
-    return res.status(400).json({ reply: "CEP não fornecido." });
+    return res.status(400).json({ reply: "❌ CEP não fornecido corretamente." });
   }
 
   const prefixo = CEP_usuario.substring(0, 3);
@@ -27,6 +27,8 @@ export default function handler(req, res) {
       reply: `✅ Representante encontrado para o CEP ${CEP_usuario}:\n📍 *${representante.nome}* – ${representante.cidade}\n📞 WhatsApp: ${representante.whatsapp}`
     });
   } else {
-    return res.status(200).json({ reply: `⚠️ Nenhum representante encontrado para o CEP ${CEP_usuario}. Entre em contato com o atendimento.` });
+    return res.status(200).json({
+      reply: `⚠️ Nenhum representante encontrado para o CEP ${CEP_usuario}. Entre em contato com o atendimento.`
+    });
   }
 }
