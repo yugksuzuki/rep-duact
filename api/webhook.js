@@ -1,12 +1,12 @@
 export default function handler(req, res) {
-  console.log("📥 Body recebido:", JSON.stringify(req.body, null, 2)); // 👈 ADICIONE ISSO
+  console.log("📥 Body recebido:", JSON.stringify(req.body, null, 2));
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Método não permitido" });
   }
 
   const { variables } = req.body;
-  const CEP_usuario = variables?.CEP_usuario;
+  const CEP_usuario = variables?.CEP_usuario?.trim(); // Remove espaços
 
   if (!CEP_usuario) {
     return res.status(400).json({ reply: "❌ CEP não fornecido." });
