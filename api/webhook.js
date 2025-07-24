@@ -1,9 +1,9 @@
 import fs from "fs";
 import path from "path";
-import csvParser from "csv-parser";
 import axios from "axios";
+import Papa from "papaparse";
 
-// Distância entre dois pontos com Haversine (em km)
+// Função de Haversine para calcular distância em km
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const toRad = deg => (deg * Math.PI) / 180;
@@ -16,28 +16,22 @@ function haversine(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Carrega representantes do CSV
+// Carregar representantes do CSV com PapaParse
 function carregarRepresentantes() {
   const filePath = path.resolve("./public", "ceps.csv");
-  return new Promise((resolve, reject) => {
-    const lista = [];
-    fs.createReadStream(filePath)
-      .pipe(csvParser())
-      .on("data", (row) => {
-        if (row.Latitude && row.Longitude) {
-          lista.push({
-            nome: row.REPRESENTANTE,
-            cidade: row.CIDADE,
-            estado: row.ESTADO,
-            celular: row.CELULAR,
-            lat: parseFloat(row.Latitude),
-            lon: parseFloat(row.Longitude),
-          });
-        }
-      })
-      .on("end", () => resolve(lista))
-      .on("error", (err) => reject(err));
-  });
+  const csvContent = fs.readFileSync(filePath, "utf8");
+  const parsed = Papa.parse(csvContent, { header: true });
+
+  return parsed.data
+    .filter(row => row.Latitude && row.Longitude)
+    .map(row => ({
+      nome: row.REPRESENTANTE,
+      cidade: row.CIDADE,
+      estado: row.ESTADO,
+      celular: row.CELULAR,
+      lat: parseFloat(row.Latitude),
+      lon: parseFloat(row.Longitude),
+    }));
 }
 
 export default async function handler(req, res) {
@@ -52,7 +46,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ reply: "❌ CEP inválido ou incompleto." });
   }
 
-  // 🔑 Chave da API OpenCage fixa
+  // 🔐 Chave fixa do OpenCage
   const OPENCAGE_KEY = "24d5173c43b74f549f4c6f5b263d52b3";
   const geoURL = `https://api.opencagedata.com/geocode/v1/json?q=${CEP_usuario}&countrycode=br&key=${OPENCAGE_KEY}`;
   let latCliente, lonCliente;
@@ -67,7 +61,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ reply: "❌ Não foi possível localizar o CEP informado." });
   }
 
-  const lista = await carregarRepresentantes();
+  const lista = carregarRepresentantes();
 
   let maisProximo = null;
   let menorDistancia = Infinity;
