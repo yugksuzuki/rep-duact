@@ -16,7 +16,7 @@ function haversine(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Carregar representantes do CSV com PapaParse
+// Carrega representantes do CSV com PapaParse
 function carregarRepresentantes() {
   const filePath = path.resolve("./public", "ceps.csv");
   const csvContent = fs.readFileSync(filePath, "utf8");
@@ -36,14 +36,14 @@ function carregarRepresentantes() {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ reply: "Método não permitido." });
+    return res.status(200).json({ reply: "❌ Método não permitido. Use POST." });
   }
 
   const { variables } = req.body;
   const CEP_usuario = variables?.CEP_usuario?.replace(/\D/g, "");
 
   if (!CEP_usuario || CEP_usuario.length < 8) {
-    return res.status(400).json({ reply: "❌ CEP inválido ou incompleto." });
+    return res.status(200).json({ reply: "❌ CEP inválido ou incompleto. Tente novamente." });
   }
 
   // 🔐 Chave fixa do OpenCage
@@ -58,7 +58,9 @@ export default async function handler(req, res) {
     latCliente = coords.lat;
     lonCliente = coords.lng;
   } catch (err) {
-    return res.status(400).json({ reply: "❌ Não foi possível localizar o CEP informado." });
+    return res.status(200).json({
+      reply: "❌ Não foi possível localizar o CEP informado. Verifique se está correto.",
+    });
   }
 
   const lista = carregarRepresentantes();
