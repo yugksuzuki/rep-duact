@@ -3,7 +3,7 @@ import path from "path";
 import axios from "axios";
 import Papa from "papaparse";
 
-// Função de Haversine para calcular distância em km
+// Haversine (distância entre dois pontos em km)
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const toRad = deg => (deg * Math.PI) / 180;
@@ -16,7 +16,7 @@ function haversine(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Carrega representantes do CSV com PapaParse
+// Carrega representantes do CSV
 function carregarRepresentantes() {
   const filePath = path.resolve("./public", "ceps.csv");
   const csvContent = fs.readFileSync(filePath, "utf8");
@@ -34,35 +34,54 @@ function carregarRepresentantes() {
     }));
 }
 
+// Obtem lat/lng via OpenCage com string completa (endereço)
+async function geocodificarEndereco(endereco) {
+  const OPENCAGE_KEY = "24d5173c43b74f549f4c6f5b263d52b3";
+  const geoURL = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(endereco)}&countrycode=br&key=${OPENCAGE_KEY}`;
+  const geoResp = await axios.get(geoURL);
+  return geoResp?.data?.results?.[0]?.geometry;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(200).json({ reply: "❌ Método não permitido. Use POST." });
   }
 
   const { variables } = req.body;
-  const CEP_usuario = variables?.CEP_usuario?.replace(/\D/g, "");
+  const cep = variables?.CEP_usuario?.replace(/\D/g, "");
 
-  if (!CEP_usuario || CEP_usuario.length < 8) {
+  if (!cep || cep.length !== 8) {
     return res.status(200).json({ reply: "❌ CEP inválido ou incompleto. Tente novamente." });
   }
 
-  // 🔐 Chave fixa do OpenCage
-  const OPENCAGE_KEY = "24d5173c43b74f549f4c6f5b263d52b3";
-  const geoURL = `https://api.opencagedata.com/geocode/v1/json?q=${CEP_usuario}&countrycode=br&key=${OPENCAGE_KEY}`;
-  let latCliente, lonCliente;
-
+  let endereco = null;
   try {
-    const geoResp = await axios.get(geoURL);
-    const coords = geoResp?.data?.results?.[0]?.geometry;
-    if (!coords) throw new Error("Não localizado");
-    latCliente = coords.lat;
-    lonCliente = coords.lng;
+    const viaCepURL = `https://viacep.com.br/ws/${cep}/json/`;
+    const resposta = await axios.get(viaCepURL);
+    const dados = resposta.data;
+
+    if (dados.erro) throw new Error("CEP não encontrado");
+
+    endereco = `${dados.logradouro || ""}, ${dados.localidade} - ${dados.uf}, Brasil`;
+
   } catch (err) {
     return res.status(200).json({
-      reply: "❌ Não foi possível localizar o CEP informado. Verifique se está correto.",
+      reply: "❌ Não foi possível consultar o CEP informado. Verifique se está correto.",
     });
   }
 
+  let coordenadas = null;
+  try {
+    coordenadas = await geocodificarEndereco(endereco);
+    if (!coordenadas) throw new Error("Sem resultado do OpenCage");
+  } catch (err) {
+    return res.status(200).json({
+      reply: "❌ Não foi possível localizar sua região geográfica. Tente novamente mais tarde.",
+    });
+  }
+
+  const latCliente = coordenadas.lat;
+  const lonCliente = coordenadas.lng;
   const lista = carregarRepresentantes();
 
   let maisProximo = null;
@@ -78,7 +97,7 @@ export default async function handler(req, res) {
 
   if (maisProximo && maisProximo.distancia <= 200) {
     return res.status(200).json({
-      reply: `✅ Representante mais próximo do CEP ${CEP_usuario}:\n\n📍 *${maisProximo.nome}* – ${maisProximo.cidade}/${maisProximo.estado}\n📞 WhatsApp: https://wa.me/55${maisProximo.celular}\n📏 Distância: ${maisProximo.distancia.toFixed(1)} km`,
+      reply: `✅ Representante mais próximo do CEP ${cep}:\n\n📍 *${maisProximo.nome}* – ${maisProximo.cidade}/${maisProximo.estado}\n📞 WhatsApp: https://wa.me/55${maisProximo.celular}\n📏 Distância: ${maisProximo.distancia.toFixed(1)} km`,
     });
   }
 
