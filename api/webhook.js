@@ -52,8 +52,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ reply: "❌ CEP inválido ou incompleto." });
   }
 
-  // 🔐 Sua chave da API do OpenCage deve estar em variável de ambiente
-  const OPENCAGE_KEY = process.env.OPENCAGE_KEY;
+  // 🔑 Chave da API OpenCage fixa
+  const OPENCAGE_KEY = "24d5173c43b74f549f4c6f5b263d52b3";
   const geoURL = `https://api.opencagedata.com/geocode/v1/json?q=${CEP_usuario}&countrycode=br&key=${OPENCAGE_KEY}`;
   let latCliente, lonCliente;
 
