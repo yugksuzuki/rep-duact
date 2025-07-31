@@ -55,15 +55,16 @@ export default async function handler(req, res) {
   }
 
   let endereco = null;
+  let dados = null;
+
   try {
     const viaCepURL = `https://viacep.com.br/ws/${cep}/json/`;
     const resposta = await axios.get(viaCepURL);
-    const dados = resposta.data;
+    dados = resposta.data;
 
     if (dados.erro) throw new Error("CEP não encontrado");
 
     endereco = `${dados.logradouro || ""}, ${dados.localidade} - ${dados.uf}, Brasil`;
-
   } catch (err) {
     return res.status(200).json({
       reply: "❌ Não foi possível consultar o CEP informado. Verifique se está correto.",
@@ -82,7 +83,42 @@ export default async function handler(req, res) {
 
   const latCliente = coordenadas.lat;
   const lonCliente = coordenadas.lng;
-  const lista = carregarRepresentantes();
+
+  // 🟨 EXCEÇÕES para SP
+  if (dados.uf === "SP") {
+    // 1. Agnaldo – Raio de 100km de Santo Anastácio
+    const distAgnaldo = haversine(latCliente, lonCliente, -21.944455, -51.6483067);
+    if (distAgnaldo <= 100) {
+      return res.status(200).json({
+        reply: `✅ Representante mais próximo do CEP ${cep}:\n\n📍 *Agnaldo* – Santo Anastácio/SP\n📞 WhatsApp: https://wa.me/5518996653510\n📏 Distância: ${distAgnaldo.toFixed(1)} km`,
+      });
+    }
+
+    // 2. Marcelo – Litoral Paulista
+    const cidadesLitoral = [
+      "Santos", "São Vicente", "Praia Grande", "Guarujá", "Bertioga",
+      "Itanhaém", "Mongaguá", "Peruíbe", "Ubatuba", "Caraguatatuba",
+      "São Sebastião", "Ilhabela", "Cubatão"
+    ];
+    if (cidadesLitoral.includes(dados.localidade)) {
+      return res.status(200).json({
+        reply: `✅ Representante para o Litoral Paulista:\n\n📍 *Marcelo*\n📞 WhatsApp: https://wa.me/5511980323728`,
+      });
+    }
+
+    // 3. William – Grande SP até Barretos (raio 200km de Alphaville)
+    const distWilliam = haversine(latCliente, lonCliente, -23.4752, -46.89124);
+    if (distWilliam <= 200) {
+      return res.status(200).json({
+        reply: `✅ Representante para Grande SP e interior até Barretos:\n\n📍 *William*\n📞 WhatsApp: https://wa.me/551984267248\n📏 Distância: ${distWilliam.toFixed(1)} km`,
+      });
+    }
+
+    // 4. Fora das exceções → continua para procurar NEILSON etc.
+  }
+
+  // 🔎 Busca padrão com representantes do mesmo estado
+  const lista = carregarRepresentantes().filter(rep => rep.estado === dados.uf);
 
   let maisProximo = null;
   let menorDistancia = Infinity;
@@ -95,13 +131,13 @@ export default async function handler(req, res) {
     }
   }
 
-  if (maisProximo && maisProximo.distancia <= 200) {
+  if (maisProximo && menorDistancia <= 200) {
     return res.status(200).json({
       reply: `✅ Representante mais próximo do CEP ${cep}:\n\n📍 *${maisProximo.nome}* – ${maisProximo.cidade}/${maisProximo.estado}\n📞 WhatsApp: https://wa.me/55${maisProximo.celular}\n📏 Distância: ${maisProximo.distancia.toFixed(1)} km`,
     });
   }
 
   return res.status(200).json({
-    reply: `❗ Nenhum representante encontrado em até 200 km.\n\nPara assuntos gerais, por favor entre em contato com nosso atendimento:\n☎️ *Everson*\n+55 (48) 9211-0383`,
+    reply: `❗ Nenhum representante encontrado em até 200 km no seu estado.\n\nPara assuntos gerais, por favor entre em contato com nosso atendimento:\n☎️ *Everson*\n+55 (48) 9211-0383`,
   });
 }
