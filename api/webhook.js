@@ -94,27 +94,19 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2. Marcelo – Litoral Paulista
-    const cidadesLitoral = [
+    // 2. Marcelo – Litoral Paulista + Barretos
+    const cidadesMarcelo = [
       "Santos", "São Vicente", "Praia Grande", "Guarujá", "Bertioga",
       "Itanhaém", "Mongaguá", "Peruíbe", "Ubatuba", "Caraguatatuba",
-      "São Sebastião", "Ilhabela", "Cubatão"
+      "São Sebastião", "Ilhabela", "Cubatão", "Barretos"
     ];
-    if (cidadesLitoral.includes(dados.localidade)) {
+    if (cidadesMarcelo.includes(dados.localidade)) {
       return res.status(200).json({
-        reply: `✅ Representante para o Litoral Paulista:\n\n📍 *Marcelo*\n📞 WhatsApp: https://wa.me/5511980323728`,
+        reply: `✅ Representante para o Litoral Paulista e Barretos:\n\n📍 *Marcelo*\n📞 WhatsApp: https://wa.me/5511980323728`,
       });
     }
 
-    // 3. William – Grande SP até Barretos (raio 200km de Alphaville)
-    const distWilliam = haversine(latCliente, lonCliente, -23.4752, -46.89124);
-    if (distWilliam <= 200) {
-      return res.status(200).json({
-        reply: `✅ Representante para Grande SP e interior até Barretos:\n\n📍 *William*\n📞 WhatsApp: https://wa.me/551984267248\n📏 Distância: ${distWilliam.toFixed(1)} km`,
-      });
-    }
-
-    // 4. Fora das exceções → continua para procurar NEILSON etc.
+    // 3. Demais regiões de SP → continua com busca padrão (Neilson, William, etc.)
   }
 
   // 🔎 Busca padrão com representantes do mesmo estado
